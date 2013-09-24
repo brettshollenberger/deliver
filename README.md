@@ -29,13 +29,13 @@ Running `deliver` will fetch or update all packages specified in `./packages.jso
 
 Binary
 ------
-You can download the latest `deliver` binary for Linux from [https://s3-us-west-2.amazonaws.com/nodemodo/users/adam/deliver](https://s3-us-west-2.amazonaws.com/nodemodo/users/adam/deliver).
+You can download the latest `deliver` binary for Linux from [here](https://s3-us-west-2.amazonaws.com/nodemodo/users/adam/deliver).
 
 
 Boostrapping Edmodo projects
 ----------------------------
 You can use deliver to fetch an entire Go project into your workspace by finding the project manifest file.
-For example, The project manifest for the Planner backend can be downloaded from[https://s3-us-west-2.amazonaws.com/nodemodo/users/adam/planner_manifest.json](https://s3-us-west-2.amazonaws.com/nodemodo/users/adam/planner_manifest.json).
+For example, The project manifest for the Planner backend can be downloaded from [here](https://s3-us-west-2.amazonaws.com/nodemodo/users/adam/planner_manifest.json).
 
 ```
 {
