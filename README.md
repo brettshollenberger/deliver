@@ -37,7 +37,18 @@ Boostrapping Edmodo projects
 You can use deliver to fetch an entire Go project into your workspace by finding the project manifest file.
 For example, The project manifest for the Planner backend can be downloaded from[https://s3-us-west-2.amazonaws.com/nodemodo/users/adam/planner_manifest.json](https://s3-us-west-2.amazonaws.com/nodemodo/users/adam/planner_manifest.json).
 
-Running `./deliver --file=planner_manifest.json` will fetch the Planner project and all necessary packages.
+```
+{
+    "packages": [
+        {
+            "location": "github.com/edmodo/planner",
+            "source": "git@github.com:edmodo/planner"
+        }
+    ]
+}
+```
+
+Running `./deliver --file=planner_manifest.json` will fetch the Planner project and all necessary packages. You will be able to start using `go run` immediately.
 
 
 To-do
