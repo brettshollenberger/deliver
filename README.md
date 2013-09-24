@@ -1,7 +1,5 @@
-deliver
+deliver: a Go package manager
 =======
-
-Go package manager
 
 deliver is a command-line tool to fetch and update package dependencies in a Go project.
 Each package must be mapped to a Git repository. The package declares its package dependencies in a `packages.json` file in the repository root:
