@@ -19,7 +19,7 @@ Each package must be mapped to a Git repository. A package declares its dependen
 }
 ```
 
-For each package, `location` defines the package directory relative to the `src/` directory of the Go workspace.
+For each package dependency, `location` defines the package directory relative to the `src/` directory of the Go workspace.
 `source` defines the Git repository from which to fetch and update the package. Note that unlike with the `go get` tool,
 the source does not have to match the location. This allows us, for example, to download the Apache thrift package from Github
 mirror rather than git.apache.org (which is quite slow).
