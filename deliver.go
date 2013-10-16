@@ -57,7 +57,7 @@ func updatePackagesFromFile(packageManifestFile string) {
 func updatePackage(p *Package) (packageManifest string) {
     goRoot := os.Getenv("GOPATH")
     packageDir := path.Join(goRoot, "src", p.Location)
-    log.Printf("PACKAGE: %s", p.Location)
+    log.Println("PACKAGE: %s", p.Location)
 
     _, err := os.Stat(packageDir);
     if os.IsNotExist(err) {
