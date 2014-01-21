@@ -24,6 +24,19 @@ type Manifest struct {
 type Package struct {
     Location string `json:"location"`
     Source   string `json:"source"`
+    Branch   string `json:"branch"`
+}
+
+func (p *Package) GetBranch() string {
+    if p.Branch == "" {
+        return "master"
+    } else {
+        return p.Branch
+    }
+}
+
+func (p *Package) IsMasterBranch() bool {
+    return p.GetBranch() == "master"
 }
 
 // Gets or updates all packages specified in the given file.
@@ -57,7 +70,7 @@ func updatePackagesFromFile(packageManifestFile string) {
 func updatePackage(p *Package) (packageManifest string) {
     goRoot := os.Getenv("GOPATH")
     packageDir := path.Join(goRoot, "src", p.Location)
-    log.Println("PACKAGE: ", p.Location)
+    log.Println("PACKAGE: ", p.Location, "BRANCH: ", p.GetBranch())
 
     _, err := os.Stat(packageDir);
     if os.IsNotExist(err) {
@@ -66,15 +79,18 @@ func updatePackage(p *Package) (packageManifest string) {
         if err != nil {
             log.Fatal(err)
         }
-        cloneRepo(p.Source, packageDir)
+        cloneRepo(p.Source, packageDir, !p.IsMasterBranch())
+        checkoutBranch(packageDir, p.GetBranch(), false)
     } else {
         // Package directory exists. Check if there's a git repository.
         gitInfoPath := path.Join(packageDir, ".git")
         if _, err := os.Stat(gitInfoPath); os.IsNotExist(err) {
             // Git repo does not exist. Clone it.
-            cloneRepo(p.Source, packageDir)
+            cloneRepo(p.Source, packageDir, !p.IsMasterBranch())
+            checkoutBranch(packageDir, p.GetBranch(), false)
         } else {
             // Git repo exists. Pull latest.
+            checkoutBranch(packageDir, p.GetBranch(), true)
             pullRepo(packageDir)
         }
     }
@@ -112,8 +128,44 @@ func pullRepo(repoPath string) {
 }
 
 // Clones the git repo into the given directory.
-func cloneRepo(repoUrl string, destinationPath string) {
+func cloneRepo(repoUrl string, destinationPath string, fetch bool) {
     err := executeCommand("git", []string{"clone", repoUrl, destinationPath})
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    if fetch {
+        err = executeCommand("git", []string{"fetch"})
+        if err != nil {
+            log.Fatal(err)
+        }
+    }
+}
+
+func checkoutBranch(repoPath, branch string, fetch bool) {
+    currentDir, err := os.Getwd()
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    err = os.Chdir(repoPath);
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    if fetch {
+        err = executeCommand("git", []string{"fetch"})
+        if err != nil {
+            log.Fatal(err)
+        }
+    }
+
+    err = executeCommand("git", []string{"checkout", branch})
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    err = os.Chdir(currentDir)
     if err != nil {
         log.Fatal(err)
     }
