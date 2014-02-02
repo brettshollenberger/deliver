@@ -1,0 +1,26 @@
+{
+    "packages": {
+        "github.com/edmodo/thrift-services": {
+            "source": "git@github.com:edmodo/thrift-services.git"
+        },
+        "github.com/edmodo/minion": {
+            "source": "git@github.com:edmodo/minion.git"
+        },
+        "git.apache.org/thrift.git": {
+            "source": "git@github.com:edmodo/thrift.git",
+            "branch": "edmodo-0.9.1"
+        },
+        "github.com/coopernurse/gorp": {
+            "source": "git@github.com:coopernurse/gorp.git"
+        },
+        "github.com/onsi/ginkgo": {
+            "source": "git@github.com:onsi/ginkgo.git"
+        },
+        "github.com/onsi/gomega": {
+            "source": "git@github.com:onsi/gomega.git"
+        },
+        "code.google.com/p/gomock": {
+            "source": "https://code.google.com/p/gomock/"
+        }
+    }
+}
