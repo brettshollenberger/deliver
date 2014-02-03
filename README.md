@@ -37,51 +37,59 @@ Running `deliver` will fetch or update all packages specified in `./packages.jso
 
 ### Checking out a project.
 
-1. Check out your Go project from Git.
+#### Check out your Go project from Git.
 ```
-cd ~
-git clone git@github.com:edmodo/auth.git
-cd auth
-/models
-/main
+> cd ~
+> git clone git@github.com:edmodo/auth.git
+> cd auth
+> ls
+models/
+main/
 users_handler.go
 packages.json
 packages.lock
 ```
 
-2. Run `deliver install`. This command will go a few things:
+#### Run `deliver install`.
+This command will go a few things:
     - create a `workspace/` directory in the repository (ignored by git).
     - download the locked versions of all packages listed in `packages.lock` into `workspace/src`.
     - recursively download any dependencies of the packages into `workspace/src`.
     - create a symlink for `auth` if "repository" is present in `packages.json`.
-
-Your project should look like this:
 ```
-/models
-/main
+> deliver install
+installing github.com/edmodo/minion
+getting dependencies of github.com/edmodo/minion
+installing github.com/coopernuse/gorp
+done with dependencies of github.com/edmodo/minion
+installing git.apache.org/thrift.git
+done.
+> ls
+models/
+main/
 users_handler.go
 packages.json
 packages.lock
-/workspace
-    /bin
-    /pkg
-    /src
-        /github.com
-            /edmodo
-                /auth -> ~/auth
-                /minion
-                /thrift-services
-            /coopernurse
-                /gorp
-        /git.apache.org
-            /thrift.git
+workspace/
+    bin/
+    pkg/
+    src/
+        github.com/
+            edmodo/
+                auth/ -> ~/auth
+                minion/
+                thrift-services/
+            coopernurse/
+                gorp/
+        git.apache.org/
+            thrift.git/
 ```
 
-3. Run `go build`, `go test`, etc.
+#### Build/test/install with `go`
 The alias for `go` will dynamically set GOPATH to the appropriate workspace. Thus, when you switch between projects, you automatically switch Go workspaces as well.
 
 ### Updating or adding a package.
-1. Modify `packages.json` if needed. Lets say we want to switch to the "stable" branch of minion, and add a new dependency:
+#### Modify `packages.json` if needed. Lets say we want to switch to the "stable" branch of minion, and add a new dependency:
 ```diff
 {
     "repository": "github.com/edmodo/auth",
@@ -90,7 +98,7 @@ The alias for `go` will dynamically set GOPATH to the appropriate workspace. Thu
             "source": "git@github.com:edmodo/minion.git",
 +           "branch": "stable"
         },
-+        "github.com/bradfitz/gomemcache": {
++       "github.com/bradfitz/gomemcache": {
 +           "source": "git@github.com:bradfitz/gomemcache.git"
 +       },
         "git.apache.org/thrift.git": {
@@ -101,16 +109,16 @@ The alias for `go` will dynamically set GOPATH to the appropriate workspace. Thu
 }
 ```
 
-2. Run `deliver update github.com/edmodo/auth`.
+#### Run `deliver update github.com/edmodo/auth`.
 Deliver will download the tip of the "stable" branch, and update `packages.lock` with the new lock information:
 ```diff
     "packages": {
         "github.com/edmodo/minion": {
             "Source": "git@github.com:edmodo/minion.git",
-+            "Branch": "stable",
-+            "Revision": "e0dbf3dfaa5531d50c37ccd39d6798c8cc7d4a78"
 -            "Branch": "master",
 -            "Revision": "7083fb7612a8bc8ef9a48c35b8364fd06fadf9ad"
++            "Branch": "stable",
++            "Revision": "e0dbf3dfaa5531d50c37ccd39d6798c8cc7d4a78"
         },
 +        "github.com/bradfitz/gomemcache": {
 +           "Source": "git@github.com:bradfitz/gomemcache.git",
