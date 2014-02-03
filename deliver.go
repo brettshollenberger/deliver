@@ -13,20 +13,29 @@ import (
 
 const PACKAGE_FILE string = "packages.json"
 const LOCK_FILE string = "packages.lock"
+const WORKSPACE_DIR string = "workspace"
 
 var noRun *bool = flag.Bool("n", false, "print the commands but do not run them")
 var verbose *bool = flag.Bool("v", false, "print the commands while running them")
 
 // Entire package definition
 type Manifest struct {
-    Repository string
+    Repository string `json:",omitempty"`
     Packages map[string]Package
+}
+
+func (m *Manifest) writeToFile(fileName string) {
+    data, err := json.Marshal(*m)
+    if err != nil {
+        log.Fatal(err)
+    }
+    ioutil.WriteFile(fileName, data, 0644)
 }
 
 // Packages defined in the manifest
 type Package struct {
     Source   string
-    Branch   string
+    Branch   string `json:",omitempty"`
     Revision string
 }
 
@@ -38,6 +47,11 @@ func (p *Package) getBranch() string {
     }
 }
 
+func (p *Package) hasRevision() bool {
+    return p.Revision != ""
+}
+
+// Parses the JSON manifest into a Manifest struct.
 func parseManifest(manifestFile string) (manifest Manifest) {
     // Package manifest must exist.
     if _, err := os.Stat(manifestFile); os.IsNotExist(err) {
@@ -55,82 +69,7 @@ func parseManifest(manifestFile string) (manifest Manifest) {
     return
 }
 
-// Gets or updates all packages specified in the given file.
-// Fetches packages recursively if one of the referenced packages
-// has a manifest.
-func installPackages(manifest *Manifest, update bool) {
-    packages := manifest.Packages
-    subPackagesToInstall := make([]Manifest, 0)
-    for packageName, packageInfo := range packages {
-        subPackageFile := installPackage(packageName, &packageInfo, update)
-
-        // Package revision may have been updated
-        if update {
-            packages[packageName] = packageInfo
-        }
-
-        // Package may have own dependencies.
-        if subPackageFile != "" {
-            subPackageManifest := parseManifest(subPackageFile)
-            subPackagesToInstall = append(subPackagesToInstall, subPackageManifest)
-        }
-    }
-
-    //for _, manifest := range subPackagesToInstall {
-    //    installPackages(&manifest, update)
-    //}
-}
-
-// Installs the given package. If the package has a locked revision,
-// use the locked revision. Otherwise, fetch and checkout the specified branch.
-func installPackage(packageName string, packageInfo *Package, updateRevision bool) (packageManifest string) {
-    goRoot := os.Getenv("GOPATH")
-    packageDir := path.Join(goRoot, "src", packageName)
-    log.Printf("updating %s", packageName)
-
-    git := GitRepository{
-        repoUrl: packageInfo.Source,
-        repoPath: packageDir,
-    }
-
-    // If package directory does not exist, create the directory.
-    if _, err := os.Stat(packageDir); os.IsNotExist(err) {
-        _, execErr := executeCommand("mkdir", "-p", packageDir)
-        if execErr != nil {
-            log.Fatal(execErr)
-        }
-    }
-
-    // Check if repository already exists in package directory.
-    gitInfoPath := path.Join(packageDir, ".git")
-    if _, err := os.Stat(gitInfoPath); os.IsNotExist(err) {
-        // Git repo does not exist. Clone it.
-        git.clone(packageDir, packageInfo.getBranch())
-    } else {
-        // Git repo exists. Pull latest.
-        git.fetch()
-    }
-
-    if packageInfo.Revision != "" {
-        git.checkoutRevision(packageInfo.Revision)
-    } else {
-        git.checkoutBranch(packageInfo.getBranch())
-        git.pullBranch(packageInfo.getBranch())
-
-        if updateRevision {
-            packageInfo.Branch = packageInfo.getBranch()
-            packageInfo.Revision = git.getCurrentRevision()
-        }
-    }
-
-    // Return true if the package has a manifest
-    packageLockFile := path.Join(packageDir, LOCK_FILE)
-    if _, err := os.Stat(packageLockFile); os.IsNotExist(err) {
-        return ""
-    }
-    return packageLockFile
-}
-
+// Encapsulates commands to run on a git repository.
 type GitRepository struct {
     repoUrl string
     repoPath string
@@ -154,9 +93,9 @@ func (g *GitRepository) checkoutRevision(revision string) {
     })
 }
 
-// Same as checkoutRevision.
-func (g *GitRepository) checkoutBranch(branch string) {
+func (g *GitRepository) checkoutBranchTip(branch string) {
     g.checkoutRevision(branch)
+    g.pullBranch(branch)
 }
 
 // Pulls the git repo from origin in the given repo path.
@@ -174,13 +113,19 @@ func (g *GitRepository) clone(destinationPath, branch string) {
     }
 }
 
+// Fetches the current repository.
 func (g *GitRepository) fetch() {
     runInDirectory(g.repoPath, func() (string, error) {
         return executeCommand("git", "fetch")
     })
 }
 
+// Function signature used in runInDirectory().
 type commandFunction func() (string, error)
+
+// Runs the given command function after changing the current directory to dir.
+// After the command function runs, change the directory back to the original
+// directory. Returns the output of the command function.
 func runInDirectory(dir string, command commandFunction) string {
     currentDir, err := os.Getwd()
     if err != nil {
@@ -215,7 +160,7 @@ func executeCommand(args ...string) (out string, err error) {
         for i, arg := range args {
             logArgs[i] = interface{}(arg)
         }
-        log.Println(logArgs...)
+        fmt.Fprint(os.Stdout, logArgs...)
     }
 
     if !*noRun {
@@ -223,6 +168,107 @@ func executeCommand(args ...string) (out string, err error) {
         outBytes, err = cmd.Output()
     }
     return string(outBytes), err
+}
+
+// Traverse the path up towards the root. If a directory has a packages.json file,
+// then workspace/ in the same directory is the workspace.
+// If we get to the root directory, return the env GOPATH.
+func getWorkspacePath() string {
+    dir, err := os.Getwd()
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    for {
+        possibleManifest := path.Join(dir, PACKAGE_FILE)
+        _, err := os.Stat(possibleManifest)
+        if err == nil {
+            // packages.json exists. Workspace is in this directory.
+            return path.Join(dir, WORKSPACE_DIR)
+        } else if os.IsNotExist(err) {
+            // packages.json does not exist.
+            if dir == "/" {
+                // If we're already at the root, return
+                // the GOPATH environment variable.
+                return os.Getenv("GOPATH")
+            } else {
+                // Check the parent directory.
+                dir = path.Join(dir, "..")
+            }
+        } else {
+            // some other error occured during os.Stat.
+            log.Fatal(err)
+        }
+    }
+}
+
+// Gets or updates all packages specified in the given file.
+// Fetches packages recursively if one of the referenced packages
+// has a manifest.
+func installPackages(manifest *Manifest, update bool) {
+    packages := manifest.Packages
+    for packageName, packageInfo := range packages {
+        installPackage(packageName, &packageInfo, update)
+
+        // Package revision may have been updated
+        if update {
+            packages[packageName] = packageInfo
+        }
+
+        // Check if package has its own dependencies. If so, install them as well.
+        // TODO: move this to installPackage(), so that we get dependencies when updating a single package.
+        goPath := os.Getenv("GOPATH")
+        packageManifestFile := path.Join(goPath, "src", packageName, LOCK_FILE)
+        if _, err := os.Stat(packageManifestFile); os.IsNotExist(err) {
+            continue
+        }
+        fmt.Fprintf(os.Stdout, "getting dependencies of %s...\n", packageName)
+        packageManifest := parseManifest(packageManifestFile)
+        installPackages(&packageManifest, update)
+        fmt.Fprintf(os.Stdout, "done with dependencies of %s\n", packageName)
+    }
+}
+
+// Installs the given package. If the package has a locked revision,
+// use the locked revision. Otherwise, update the package (by checking out the tip of the specified branch).
+// If updateRevision is set to true and the package was updated, update the Revision field
+// of the packageInfo struct.
+func installPackage(packageName string, packageInfo *Package, updateRevision bool) {
+    goPath := os.Getenv("GOPATH")
+    packageDir := path.Join(goPath, "src", packageName)
+    fmt.Fprintf(os.Stdout, "updating %s", packageName)
+
+    git := GitRepository{
+        repoUrl: packageInfo.Source,
+        repoPath: packageDir,
+    }
+
+    // If package directory does not exist, create the directory.
+    if _, err := os.Stat(packageDir); os.IsNotExist(err) {
+        _, execErr := executeCommand("mkdir", "-p", packageDir)
+        if execErr != nil {
+            log.Fatal(execErr)
+        }
+    }
+
+    // Check if repository already exists in package directory.
+    gitInfoPath := path.Join(packageDir, ".git")
+    if _, err := os.Stat(gitInfoPath); os.IsNotExist(err) {
+        // Git repo does not exist. Clone it.
+        git.clone(packageDir, packageInfo.getBranch())
+    } else {
+        // Git repo exists. Pull latest.
+        git.fetch()
+    }
+
+    if packageInfo.hasRevision() {
+        git.checkoutRevision(packageInfo.Revision)
+    } else {
+        git.checkoutBranchTip(packageInfo.getBranch())
+        if updateRevision {
+            packageInfo.Revision = git.getCurrentRevision()
+        }
+    }
 }
 
 func usage() {
@@ -247,27 +293,36 @@ func main() {
     }
 
     switch args[0] {
+    case "path":
+        // Return the deliver gopath.
+        workspacePath := getWorkspacePath()
+        fmt.Fprintf(os.Stdout, "%s", workspacePath)
+        os.Exit(0)
     case "install":
+        // Get the locked versions of all packages.
         lockManifest := parseManifest(LOCK_FILE)
         installPackages(&lockManifest, false)
     case "update":
         manifest := parseManifest(PACKAGE_FILE)
         if len(args) == 2 {
-            // update single package
+            lockManifest := parseManifest(LOCK_FILE)
+
+            // Get latest version of a single package
+            // and updates the single package in the lockfile.
             packageName := args[1]
             packageInfo, ok := manifest.Packages[packageName]
             if !ok {
                 log.Fatalf("package not in packages.json")
             }
             installPackage(packageName, &packageInfo, true)
+            lockManifest.Packages[packageName] = packageInfo
+            lockManifest.writeToFile(LOCK_FILE)
         } else {
-            // update all packages
+
+            // Get latest versions of all packages,
+            // and updates the entire lockfile.
             installPackages(&manifest, true)
+            manifest.writeToFile(LOCK_FILE)
         }
-        lockFileData, err := json.Marshal(manifest)
-        if err != nil {
-            log.Fatal(err)
-        }
-        ioutil.WriteFile(LOCK_FILE, lockFileData, 0644)
     }
 }
