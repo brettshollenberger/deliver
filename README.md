@@ -45,10 +45,10 @@ packages.lock
 
 #### Run `deliver install`
 This command will go a few things:
-    - create a `workspace/` directory in the repository (ignored by git).
-    - download the locked versions of all packages listed in `packages.lock` into `workspace/src`.
-    - recursively download any dependencies of the packages into `workspace/src`.
-    - create a symlink for `auth` if "repository" is present in `packages.json`.
+- create a `workspace/` directory in the repository (ignored by git).
+- download the locked versions of all packages listed in `packages.lock` into `workspace/src`.
+- recursively download any dependencies of the packages into `workspace/src`.
+- create a symlink for `auth` if "repository" is present in `packages.json`.
 ```
 > deliver install
 installing github.com/edmodo/minion
