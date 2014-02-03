@@ -252,7 +252,18 @@ func main() {
         installPackages(&lockManifest, false)
     case "update":
         manifest := parseManifest(PACKAGE_FILE)
-        installPackages(&manifest, true)
+        if len(args) == 2 {
+            // update single package
+            packageName := args[1]
+            packageInfo, ok := manifest.Packages[packageName]
+            if !ok {
+                log.Fatalf("package not in packages.json")
+            }
+            installPackage(packageName, &packageInfo, true)
+        } else {
+            // update all packages
+            installPackages(&manifest, true)
+        }
         lockFileData, err := json.Marshal(manifest)
         if err != nil {
             log.Fatal(err)
