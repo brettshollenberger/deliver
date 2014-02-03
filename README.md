@@ -30,7 +30,7 @@ Each package also contains a `packages.lock` file, which is a copy of `packages.
 
 ### Checking out a project
 
-#### Check out your Go project from Git.
+#### Check out your Go project from git
 ```
 > cd ~
 > git clone git@github.com:edmodo/auth.git
@@ -103,8 +103,8 @@ Lets say we want to switch to the "stable" branch of minion, and add a new depen
 }
 ```
 
-#### Run `deliver update github.com/edmodo/auth`.
-Deliver will download the tip of the "stable" branch, and update `packages.lock` with the new lock information:
+#### Run `deliver update`.
+Deliver will download the tip of the "stable" branch, download the new package, and update `packages.lock` with the new lock information:
 ```diff
     "packages": {
         "github.com/edmodo/minion": {
