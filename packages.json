@@ -4,7 +4,8 @@
             "source": "git@github.com:edmodo/thrift-services.git"
         },
         "github.com/edmodo/minion": {
-            "source": "git@github.com:edmodo/minion.git"
+            "source": "git@github.com:edmodo/minion.git",
+            "branch": "deliver"
         },
         "git.apache.org/thrift.git": {
             "source": "git@github.com:edmodo/thrift.git",
