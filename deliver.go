@@ -118,6 +118,7 @@ func installPackage(packageName string, packageInfo *Package, updateRevision boo
         git.pullBranch(packageInfo.getBranch())
 
         if updateRevision {
+            packageInfo.Branch = packageInfo.getBranch()
             packageInfo.Revision = git.getCurrentRevision()
         }
     }
