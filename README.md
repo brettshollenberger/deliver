@@ -1,8 +1,8 @@
 deliver: a Go package manager
 =======
 
-deliver is a command-line tool to fetch and update package dependencies in a Go project.
-It can also be used to automatically switch Go workspaces when switching between projects.
+Deliver is a command-line tool to fetch and update package dependencies in a Go project.
+It can also be used to automatically manage different Go workspaces for different projects.
 
 Each package must be mapped to a Git repository. A package declares its dependencies in a `packages.json` file in the repository root:
 
@@ -21,21 +21,14 @@ Each package must be mapped to a Git repository. A package declares its dependen
 }
 ```
 
-Each package also contains a `packages.lock` file, which is a copy of `packages.json`, but with "lock" information about each package. For 
-
-For each package dependency, `location` defines the package directory relative to the `src/` directory of the Go workspace.
-`source` defines the Git repository from which to fetch and update the package. Note that unlike with the `go get` tool,
-the source does not have to match the location. This allows us, for example, to download the Apache thrift package from Github
-mirror rather than git.apache.org (which is quite slow).
-
-Running `deliver` will fetch or update all packages specified in `./packages.json`. If any of the packages themselves include a `packages.json` file, deliver will recursively fetch or update all of those dependencies as well.
+Each package also contains a `packages.lock` file, which is a copy of `packages.json` with "lock" information about the revision of each package.
 
 ### Using Deliver
 
 1. Install deliver on your machine. Download it from here and place it in a directory on your PATH.
 2. Add `alias go='GOPATH=$(deliver path) go'` to ~/.bashrc. Run `source ~/.bashrc`.
 
-### Checking out a project.
+### Checking out a project
 
 #### Check out your Go project from Git.
 ```
@@ -50,7 +43,7 @@ packages.json
 packages.lock
 ```
 
-#### Run `deliver install`.
+#### Run `deliver install`
 This command will go a few things:
     - create a `workspace/` directory in the repository (ignored by git).
     - download the locked versions of all packages listed in `packages.lock` into `workspace/src`.
@@ -88,8 +81,9 @@ workspace/
 #### Build/test/install with `go`
 The alias for `go` will dynamically set GOPATH to the appropriate workspace. Thus, when you switch between projects, you automatically switch Go workspaces as well.
 
-### Updating or adding a package.
-#### Modify `packages.json` if needed. Lets say we want to switch to the "stable" branch of minion, and add a new dependency:
+### Updating or adding a package
+#### Modify `packages.json`.
+Lets say we want to switch to the "stable" branch of minion, and add a new dependency:
 ```diff
 {
     "repository": "github.com/edmodo/auth",
