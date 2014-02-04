@@ -60,18 +60,14 @@ func (p *Package) hasRevision() bool {
 func NewManifestFromFile(manifestFile string) (manifest *Manifest) {
 	manifest = &Manifest{}
 	// Package manifest must exist.
-	if _, err := os.Stat(manifestFile); os.IsNotExist(err) {
-		log.Fatal(err)
-	} else {
-		fileBytes, err := ioutil.ReadFile(manifestFile)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = json.Unmarshal(fileBytes, manifest)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
+    fileBytes, err := ioutil.ReadFile(manifestFile)
+    if err != nil {
+        log.Fatal(err)
+    }
+    err = json.Unmarshal(fileBytes, manifest)
+    if err != nil {
+        log.Fatal(err)
+    }
 	return
 }
 
@@ -127,12 +123,12 @@ func (g *GitRepository) fetch() {
 }
 
 // Function signature used in runInDirectory().
-type commandFunction func() (string, error)
+type CommandFunction func() (string, error)
 
 // Runs the given command function after changing the current directory to dir.
 // After the command function runs, change the directory back to the original
 // directory. Returns the output of the command function.
-func runInDirectory(dir string, command commandFunction) string {
+func runInDirectory(dir string, command CommandFunction) string {
 	currentDir, err := os.Getwd()
 	if err != nil {
 		log.Fatal(err)
@@ -143,12 +139,13 @@ func runInDirectory(dir string, command commandFunction) string {
 		log.Fatal(err)
 	}
 
-	out, err := command()
-	if err != nil {
-		log.Fatal(err)
-	}
+    defer func() {
+        if err = os.Chdir(currentDir); err != nil {
+            log.Fatal(err)
+        }
+    }()
 
-	err = os.Chdir(currentDir)
+	out, err := command()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -183,6 +180,9 @@ func createWorkspaceSymlink(repositoryPath string) {
 	}
 	linkPath := path.Join(WORKSPACE_DIR, "src", repositoryPath)
 	_, err = executeCommand("ln", "-s", currentDir, linkPath)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 // Traverse the path up towards the root. If a directory has a packages.json file,
@@ -200,7 +200,9 @@ func getWorkspacePath() string {
 		if err == nil {
 			// packages.json exists. Workspace is in this directory.
 			return path.Join(dir, WORKSPACE_DIR)
-		} else if os.IsNotExist(err) {
+		}
+
+        if os.IsNotExist(err) {
 			// packages.json does not exist.
 			if dir == "/" {
 				// If we're already at the root, return
@@ -293,8 +295,8 @@ func usage() {
 	fmt.Fprintf(os.Stderr, "  install [package]\tInstalls all packages in packages.lock.\n"+
 		"                   \tIf a package name is provided, installs only a single package.\n")
 	fmt.Fprintf(os.Stderr, "  update [package] \tUpdates all packages in packages.json to the latest versions, and\n"+
-		"                   \tsaves the versions to packages.lock.\n")
-	fmt.Fprintf(os.Stderr, "                   \tIf a package name is provided, updates only a single package.\n")
+		"                   \tsaves the versions to packages.lock.\n"+
+		"                   \tIf a package name is provided, updates only a single package.\n")
 	fmt.Fprintf(os.Stderr, "The flags are:\n\n")
 	flag.PrintDefaults()
 	fmt.Fprintf(os.Stderr, "\n")
