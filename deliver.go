@@ -34,7 +34,7 @@ func (m *Manifest) writeToFile(fileName string) {
 }
 
 func (m *Manifest) hasRepository() bool {
-    return m.Repository != ""
+	return m.Repository != ""
 }
 
 // Packages defined in the manifest
@@ -58,7 +58,7 @@ func (p *Package) hasRevision() bool {
 
 // Parses the manifest from into a Manifest struct.
 func NewManifestFromFile(manifestFile string) (manifest *Manifest) {
-    manifest = &Manifest{}
+	manifest = &Manifest{}
 	// Package manifest must exist.
 	if _, err := os.Stat(manifestFile); os.IsNotExist(err) {
 		log.Fatal(err)
@@ -181,8 +181,8 @@ func createWorkspaceSymlink(repositoryPath string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-    linkPath := path.Join(WORKSPACE_DIR, "src", repositoryPath)
-    _, err = executeCommand("ln", "-s", currentDir, linkPath)
+	linkPath := path.Join(WORKSPACE_DIR, "src", repositoryPath)
+	_, err = executeCommand("ln", "-s", currentDir, linkPath)
 }
 
 // Traverse the path up towards the root. If a directory has a packages.json file,
@@ -290,10 +290,10 @@ func usage() {
 	fmt.Fprintf(os.Stderr, "Deliver is a package manager for Go\n\n")
 	fmt.Fprintf(os.Stderr, "Usage:\n\n  deliver [flags] [command] [arguments]\n\n")
 	fmt.Fprintf(os.Stderr, "The commands are:\n\n")
-	fmt.Fprintf(os.Stderr, "  install [package]\tInstalls all packages in packages.lock.\n" +
-	                       "                   \tIf a package name is provided, installs only a single package.\n")
-	fmt.Fprintf(os.Stderr, "  update [package] \tUpdates all packages in packages.json to the latest versions, and\n" +
-                           "                   \tsaves the versions to packages.lock.\n")
+	fmt.Fprintf(os.Stderr, "  install [package]\tInstalls all packages in packages.lock.\n"+
+		"                   \tIf a package name is provided, installs only a single package.\n")
+	fmt.Fprintf(os.Stderr, "  update [package] \tUpdates all packages in packages.json to the latest versions, and\n"+
+		"                   \tsaves the versions to packages.lock.\n")
 	fmt.Fprintf(os.Stderr, "                   \tIf a package name is provided, updates only a single package.\n")
 	fmt.Fprintf(os.Stderr, "The flags are:\n\n")
 	flag.PrintDefaults()
@@ -329,9 +329,9 @@ func main() {
 			downloadPackage(packageName, &packageInfo)
 		} else {
 			downloadPackages(lockManifest)
-            if lockManifest.hasRepository() {
-               createWorkspaceSymlink(lockManifest.Repository)
-            }
+			if lockManifest.hasRepository() {
+				createWorkspaceSymlink(lockManifest.Repository)
+			}
 		}
 
 	case "update":
@@ -344,19 +344,19 @@ func main() {
 				log.Fatalf("Package not found: %s", packageName)
 			}
 			downloadPackage(packageName, &packageInfo)
-            // Replace a single package in the lockfile.
-            // This will create a new lockfile if one doesn't exist.
+			// Replace a single package in the lockfile.
+			// This will create a new lockfile if one doesn't exist.
 			lockManifest := NewManifestFromFile(LOCK_FILE)
 			lockManifest.Packages[packageName] = packageInfo
-            lockManifest.writeToFile(LOCK_FILE)
+			lockManifest.writeToFile(LOCK_FILE)
 		} else {
 			downloadPackages(manifest)
-            if manifest.hasRepository() {
-               createWorkspaceSymlink(manifest.Repository)
-            }
-            // Replace the entire lockfile.
-            // This will create a new lockfile if one doesn't exist.
-            manifest.writeToFile(LOCK_FILE)
+			if manifest.hasRepository() {
+				createWorkspaceSymlink(manifest.Repository)
+			}
+			// Replace the entire lockfile.
+			// This will create a new lockfile if one doesn't exist.
+			manifest.writeToFile(LOCK_FILE)
 		}
 	}
 }
