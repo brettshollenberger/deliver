@@ -2,10 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -28,7 +28,7 @@ type Manifest struct {
 func (m *Manifest) writeToFile(fileName string) {
 	data, err := json.Marshal(*m)
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 	ioutil.WriteFile(fileName, data, 0644)
 }
@@ -62,11 +62,11 @@ func NewManifestFromFile(manifestFile string) (manifest *Manifest) {
 	// Package manifest must exist.
     fileBytes, err := ioutil.ReadFile(manifestFile)
     if err != nil {
-        log.Fatal(err)
+        panic(err)
     }
     err = json.Unmarshal(fileBytes, manifest)
     if err != nil {
-        log.Fatal(err)
+        panic(err)
     }
 	return
 }
@@ -111,7 +111,7 @@ func (g *GitRepository) pullBranch(branch string) {
 func (g *GitRepository) clone(destinationPath, branch string) {
 	_, err := executeCommand("git", "clone", "-b", branch, g.repoUrl, destinationPath)
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 }
 
@@ -131,23 +131,23 @@ type CommandFunction func() (string, error)
 func runInDirectory(dir string, command CommandFunction) string {
 	currentDir, err := os.Getwd()
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	err = os.Chdir(dir)
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
     defer func() {
         if err = os.Chdir(currentDir); err != nil {
-            log.Fatal(err)
+            panic(err)
         }
     }()
 
 	out, err := command()
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	return out
@@ -163,7 +163,7 @@ func executeCommand(args ...string) (out string, err error) {
 		for i, arg := range args {
 			logArgs[i] = interface{}(arg)
 		}
-		log.Println(logArgs...)
+		fmt.Fprintln(os.Stdout, logArgs...)
 	}
 
 	if !*noRun {
@@ -176,12 +176,12 @@ func executeCommand(args ...string) (out string, err error) {
 func createWorkspaceSymlink(repositoryPath string) {
 	currentDir, err := os.Getwd()
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 	linkPath := path.Join(WORKSPACE_DIR, "src", repositoryPath)
 	_, err = executeCommand("ln", "-s", currentDir, linkPath)
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 }
 
@@ -191,7 +191,7 @@ func createWorkspaceSymlink(repositoryPath string) {
 func getWorkspacePath() string {
 	dir, err := os.Getwd()
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	for {
@@ -214,7 +214,7 @@ func getWorkspacePath() string {
 			}
 		} else {
 			// some other error occured during os.Stat.
-			log.Fatal(err)
+			panic(err)
 		}
 	}
 }
@@ -251,7 +251,7 @@ func downloadPackage(packageName string, packageInfo *Package) {
 	if _, err := os.Stat(packageDir); os.IsNotExist(err) {
 		_, execErr := executeCommand("mkdir", "-p", packageDir)
 		if execErr != nil {
-			log.Fatal(execErr)
+			panic(execErr)
 		}
 	}
 
@@ -284,7 +284,7 @@ func downloadPackage(packageName string, packageInfo *Package) {
 		fmt.Fprintf(os.Stdout, "done with dependencies of %s\n", packageName)
 
 	case !os.IsNotExist(err):
-		log.Fatal(err)
+		panic(err)
 	}
 }
 
@@ -312,6 +312,13 @@ func main() {
 		usage()
 	}
 
+    defer func() {
+        if r := recover(); r != nil {
+            fmt.Fprintf(os.Stderr, "%v\n", r)
+            os.Exit(1)
+        }
+    }()
+
 	switch args[0] {
 	case "path":
 		// Return the deliver gopath.
@@ -326,7 +333,7 @@ func main() {
 			packageName := args[1]
 			packageInfo, ok := lockManifest.Packages[packageName]
 			if !ok {
-				log.Fatalf("Package %s not found in %s", packageName, LOCK_FILE)
+				panic(errors.New(fmt.Sprintf("Package %s not found in %s", packageName, LOCK_FILE)))
 			}
 			downloadPackage(packageName, &packageInfo)
 		} else {
@@ -343,7 +350,7 @@ func main() {
 			packageName := args[1]
 			packageInfo, ok := manifest.Packages[packageName]
 			if !ok {
-				log.Fatalf("Package not found: %s", packageName)
+				panic(errors.New(fmt.Sprintf("Package not found: %s", packageName)))
 			}
 			downloadPackage(packageName, &packageInfo)
 			// Replace a single package in the lockfile.
