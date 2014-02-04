@@ -72,3 +72,8 @@ workspace/
         git.apache.org/
             thrift.git/
 ```
+
+#### Remaining work
+- Detect cyclical package dependencies.
+- Detect conflicts between locked revisions of dependencies.
+- Detect if current workspace is out-of-date compared to the lockfile.
