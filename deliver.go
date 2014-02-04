@@ -183,9 +183,6 @@ func createWorkspaceSymlink(repositoryPath string) {
 	}
     linkPath := path.Join(WORKSPACE_DIR, "src", repositoryPath)
     _, err = executeCommand("ln", "-s", currentDir, linkPath)
-    if err != nil {
-        log.Fatal(err)
-    }
 }
 
 // Traverse the path up towards the root. If a directory has a packages.json file,
@@ -239,9 +236,9 @@ func downloadPackages(manifest *Manifest) {
 // If the package itself has dependencies specified in a lockfile, recursively download
 // them as well.
 func downloadPackage(packageName string, packageInfo *Package) {
-	goPath := os.Getenv("GOPATH")
-	packageDir := path.Join(goPath, "src", packageName)
+	packageDir := path.Join(getWorkspacePath(), "src", packageName)
 	fmt.Fprintf(os.Stdout, "downloading %s\n", packageName)
+	fmt.Fprintf(os.Stdout, "package dir %s\n", packageDir)
 
 	git := GitRepository{
 		repoUrl:  packageInfo.Source,
@@ -274,7 +271,7 @@ func downloadPackage(packageName string, packageInfo *Package) {
 	}
 
 	// Check if package has its own dependencies. If so, download them as well.
-	packageManifestFile := path.Join(goPath, "src", packageName, LOCK_FILE)
+	packageManifestFile := path.Join(packageDir, LOCK_FILE)
 	_, err := os.Stat(packageManifestFile)
 	switch {
 	case err == nil:
