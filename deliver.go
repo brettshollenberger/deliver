@@ -51,8 +51,8 @@ func (p *Package) hasRevision() bool {
     return p.Revision != ""
 }
 
-// Parses the JSON manifest into a Manifest struct.
-func parseManifest(manifestFile string) (manifest Manifest) {
+// Parses the manifest from into a Manifest struct.
+func NewManifestFromFile(manifestFile string) (manifest Manifest) {
     // Package manifest must exist.
     if _, err := os.Stat(manifestFile); os.IsNotExist(err) {
         log.Fatal(err)
@@ -223,7 +223,7 @@ func installPackages(manifest *Manifest, update bool) {
             continue
         }
         fmt.Fprintf(os.Stdout, "getting dependencies of %s...\n", packageName)
-        packageManifest := parseManifest(packageManifestFile)
+        packageManifest := NewManifestFromFile(packageManifestFile)
         installPackages(&packageManifest, update)
         fmt.Fprintf(os.Stdout, "done with dependencies of %s\n", packageName)
     }
@@ -300,25 +300,32 @@ func main() {
         os.Exit(0)
     case "install":
         // Get the locked versions of all packages.
-        lockManifest := parseManifest(LOCK_FILE)
-        installPackages(&lockManifest, false)
-    case "update":
-        manifest := parseManifest(PACKAGE_FILE)
+        lockManifest := NewManifestFromFile(LOCK_FILE)
         if len(args) == 2 {
-            lockManifest := parseManifest(LOCK_FILE)
-
+            packageName := args[1]
+            packageInfo, ok := lockManifest.Packages[packageName]
+            if !ok {
+                log.Fatalf("package not in %s. Run \"deliver update %s\"", LOCK_FILE, packageName)
+            }
+            installPackage(packageName, &packageInfo, false)
+        } else {
+            installPackages(&lockManifest, false)
+        }
+    case "update":
+        manifest := NewManifestFromFile(PACKAGE_FILE)
+        if len(args) == 2 {
             // Get latest version of a single package
             // and updates the single package in the lockfile.
+            lockManifest := NewManifestFromFile(LOCK_FILE)
             packageName := args[1]
             packageInfo, ok := manifest.Packages[packageName]
             if !ok {
-                log.Fatalf("package not in packages.json")
+                log.Fatalf("Package \"%s\" not found in %s", packageName, PACKAGE_FILE)
             }
             installPackage(packageName, &packageInfo, true)
             lockManifest.Packages[packageName] = packageInfo
             lockManifest.writeToFile(LOCK_FILE)
         } else {
-
             // Get latest versions of all packages,
             // and updates the entire lockfile.
             installPackages(&manifest, true)
