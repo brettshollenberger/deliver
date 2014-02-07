@@ -14,7 +14,7 @@ import (
 const (
 	PACKAGE_FILE  string = "packages.json"
 	LOCK_FILE     string = "packages.lock"
-	WORKSPACE_DIR string = "workspace"
+	WORKSPACES_DIR string = "deliver_workspaces"
 )
 
 var noRun *bool = flag.Bool("n", false, "print the commands but do not run them")
@@ -178,7 +178,20 @@ func createWorkspaceSymlink(repositoryPath string) {
 	if err != nil {
 		panic(err)
 	}
-	linkPath := path.Join(WORKSPACE_DIR, "src", repositoryPath)
+	linkPath := path.Join(getWorkspacePath(), "src", repositoryPath)
+
+    linkDir := path.Join(linkPath, "..")
+    _, err = executeCommand("mkdir", "-p", linkDir)
+    if err != nil {
+        panic(err)
+    }
+
+    // Remove existing symlink
+    _, err = executeCommand("rm", "-f", linkPath)
+    if err != nil {
+        panic(err)
+    }
+
 	_, err = executeCommand("ln", "-s", currentDir, linkPath)
 	if err != nil {
 		panic(err)
@@ -198,8 +211,9 @@ func getWorkspacePath() string {
 		possibleManifest := path.Join(dir, PACKAGE_FILE)
 		_, err := os.Stat(possibleManifest)
 		if err == nil {
-			// packages.json exists. Workspace is in this directory.
-			return path.Join(dir, WORKSPACE_DIR)
+			// packages.json exists. Crete workspace
+            home_dir := os.Getenv("HOME")
+			return path.Join(home_dir, WORKSPACES_DIR, dir)
 		}
 
         if os.IsNotExist(err) {
