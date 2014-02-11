@@ -19,6 +19,7 @@ const (
 
 var noRun *bool = flag.Bool("n", false, "print the commands but do not run them")
 var verbose *bool = flag.Bool("v", false, "print the commands while running them")
+var homeDir *string = flag.String("root", "", "where to create the deliver workspaces directory. If empty, uses hom directory")
 
 type Manifest struct {
 	Repository string `json:",omitempty"`
@@ -212,8 +213,13 @@ func getWorkspacePath() string {
 		_, err := os.Stat(possibleManifest)
 		if err == nil {
 			// packages.json exists. Crete workspace
-            home_dir := os.Getenv("HOME")
-			return path.Join(home_dir, WORKSPACES_DIR, dir)
+            var workspaceRoot string
+            if len(*homeDir) == 0 {
+                workspaceRoot = os.Getenv("HOME")
+            } else {
+                workspaceRoot = *homeDir
+            }
+			return path.Join(workspaceRoot, WORKSPACES_DIR, dir)
 		}
 
         if os.IsNotExist(err) {
