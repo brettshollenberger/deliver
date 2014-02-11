@@ -19,7 +19,8 @@ const (
 
 var noRun *bool = flag.Bool("n", false, "print the commands but do not run them")
 var verbose *bool = flag.Bool("v", false, "print the commands while running them")
-var homeDir *string = flag.String("root", "", "where to create the deliver workspaces directory. If empty, uses hom directory")
+var rootWorkspaceDir *string = flag.String("root", "", "where to create the deliver workspaces directory. If empty, uses home directory")
+var useDeliverWorkspace *bool = flag.Bool("deliver_workspace", true, "If true, use the project-specific Go workspace. If false, use $GOPATH")
 
 type Manifest struct {
 	Repository string `json:",omitempty"`
@@ -181,6 +182,11 @@ func createWorkspaceSymlink(repositoryPath string) {
 	}
 	linkPath := path.Join(getWorkspacePath(), "src", repositoryPath)
 
+    if linkPath == currentDir {
+        fmt.Fprintln(os.Stdout, "skipping symlink...")
+        return
+    }
+
     linkDir := path.Join(linkPath, "..")
     _, err = executeCommand("mkdir", "-p", linkDir)
     if err != nil {
@@ -203,6 +209,10 @@ func createWorkspaceSymlink(repositoryPath string) {
 // then workspace/ in the same directory is the workspace.
 // If we get to the root directory, return the env GOPATH.
 func getWorkspacePath() string {
+    if !*useDeliverWorkspace {
+        return os.Getenv("GOPATH")
+    }
+
 	dir, err := os.Getwd()
 	if err != nil {
 		panic(err)
@@ -214,10 +224,10 @@ func getWorkspacePath() string {
 		if err == nil {
 			// packages.json exists. Crete workspace
             var workspaceRoot string
-            if len(*homeDir) == 0 {
+            if len(*rootWorkspaceDir) == 0 {
                 workspaceRoot = os.Getenv("HOME")
             } else {
-                workspaceRoot = *homeDir
+                workspaceRoot = *rootWorkspaceDir
             }
 			return path.Join(workspaceRoot, WORKSPACES_DIR, dir)
 		}
