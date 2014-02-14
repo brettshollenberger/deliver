@@ -20,7 +20,7 @@ const (
 var noRun *bool = flag.Bool("n", false, "print the commands but do not run them")
 var verbose *bool = flag.Bool("v", false, "print the commands while running them")
 var rootWorkspaceDir *string = flag.String("root", "", "where to create the deliver workspaces directory. If empty, uses home directory")
-var useDeliverWorkspace *bool = flag.Bool("deliver_workspace", true, "If true, use the project-specific Go workspace. If false, use $GOPATH")
+var useDeliverWorkspace *bool = flag.Bool("deliver_workspace", false, "If true, use the project-specific Go workspace. If false, use $GOPATH")
 
 type Manifest struct {
 	Repository string `json:",omitempty"`
