@@ -30,14 +30,12 @@ In addition to `packages.json`, the repository defines the current versions of t
 Install deliver on your machine. Download it from here (or compile it from source) and place it in a directory on your PATH.
 
 ### Usage
-- `go update` updates each package in `packages.json` to the tip the latest version. The version information is saved to the lockfile. 
-- `go update [package name]` is the same as `go update`, but runs only for a single package.
-- `go install` updates each package in the lockfile to the specified revision.
-- `go install [package name]` is the same as `go install`, but runs only for a single package.
+- `deliver update` updates each package in `packages.json` to the tip the latest version. The version information is saved to the lockfile. 
+- `deliver update [package name]` is the same as `deliver update`, but runs only for a single package.
+- `deliver install` updates each package in the lockfile to the specified revision.
+- `deliver install [package name]` is the same as `deliver install`, but runs only for a single package.
 
 #### Implementation
-Deliver maintains a separate Go workspace per project (in a directory called `workspace/`). By aliasing the `go` command, deliver switches the GOPATH environment variable so that builds and installs happen in each project's workspace.
-
 Running `deliver install` does the following steps:
 - downloads the locked versions of all packages listed in `packages.lock` into `$GOPATH/src`.
 - recursively downloads any dependencies of the packages into `$GOPATH/src`.
