@@ -27,8 +27,7 @@ In addition to `packages.json`, the repository defines the current versions of t
 
 ### Installation
 
-1. Install deliver on your machine. Download it from here (or compile it from source) and place it in a directory on your PATH.
-2. Add `alias go='GOPATH=$(deliver path) go'` to ~/.bashrc. Run `source ~/.bashrc`.
+Install deliver on your machine. Download it from here (or compile it from source) and place it in a directory on your PATH.
 
 ### Usage
 - `go update` updates each package in `packages.json` to the tip the latest version. The version information is saved to the lockfile. 
@@ -40,10 +39,9 @@ In addition to `packages.json`, the repository defines the current versions of t
 Deliver maintains a separate Go workspace per project (in a directory called `workspace/`). By aliasing the `go` command, deliver switches the GOPATH environment variable so that builds and installs happen in each project's workspace.
 
 Running `deliver install` does the following steps:
-- create a `workspace/` directory in the repository (ignored by git).
-- download the locked versions of all packages listed in `packages.lock` into `workspace/src`.
-- recursively download any dependencies of the packages into `workspace/src`.
-- create a symlink for `auth` if "repository" is present in `packages.json`.
+- downloads the locked versions of all packages listed in `packages.lock` into `$GOPATH/src`.
+- recursively downloads any dependencies of the packages into `$GOPATH/src`.
+
 ```
 > deliver install
 installing github.com/edmodo/minion
@@ -52,25 +50,6 @@ installing github.com/coopernuse/gorp
 done with dependencies of github.com/edmodo/minion
 installing git.apache.org/thrift.git
 done.
-> ls
-models/
-main/
-users_handler.go
-packages.json
-packages.lock
-workspace/
-    bin/
-    pkg/
-    src/
-        github.com/
-            edmodo/
-                auth/ -> ~/auth
-                minion/
-                thrift-services/
-            coopernurse/
-                gorp/
-        git.apache.org/
-            thrift.git/
 ```
 
 #### Remaining work
