@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 )
 
 const (
@@ -210,7 +211,7 @@ func createWorkspaceSymlink(repositoryPath string) {
 // If we get to the root directory, return the env GOPATH.
 func getWorkspacePath() string {
     if !*useDeliverWorkspace {
-        return os.Getenv("GOPATH")
+        return strings.Split(os.Getenv("GOPATH"), ":")[0]
     }
 
 	dir, err := os.Getwd()
