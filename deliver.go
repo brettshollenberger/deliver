@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	PACKAGE_FILE  string = "packages.json"
-	LOCK_FILE     string = "packages.lock"
+	PACKAGE_FILE   string = "packages.json"
+	LOCK_FILE      string = "packages.lock"
 	WORKSPACES_DIR string = "deliver_workspaces"
 )
 
@@ -63,14 +63,14 @@ func (p *Package) hasRevision() bool {
 func NewManifestFromFile(manifestFile string) (manifest *Manifest) {
 	manifest = &Manifest{}
 	// Package manifest must exist.
-    fileBytes, err := ioutil.ReadFile(manifestFile)
-    if err != nil {
-        panic(err)
-    }
-    err = json.Unmarshal(fileBytes, manifest)
-    if err != nil {
-        panic(err)
-    }
+	fileBytes, err := ioutil.ReadFile(manifestFile)
+	if err != nil {
+		panic(err)
+	}
+	err = json.Unmarshal(fileBytes, manifest)
+	if err != nil {
+		panic(err)
+	}
 	return
 }
 
@@ -142,11 +142,11 @@ func runInDirectory(dir string, command CommandFunction) string {
 		panic(err)
 	}
 
-    defer func() {
-        if err = os.Chdir(currentDir); err != nil {
-            panic(err)
-        }
-    }()
+	defer func() {
+		if err = os.Chdir(currentDir); err != nil {
+			panic(err)
+		}
+	}()
 
 	out, err := command()
 	if err != nil {
@@ -183,22 +183,22 @@ func createWorkspaceSymlink(repositoryPath string) {
 	}
 	linkPath := path.Join(getWorkspacePath(), "src", repositoryPath)
 
-    if linkPath == currentDir {
-        fmt.Fprintln(os.Stdout, "skipping symlink...")
-        return
-    }
+	if linkPath == currentDir {
+		fmt.Fprintln(os.Stdout, "skipping symlink...")
+		return
+	}
 
-    linkDir := path.Join(linkPath, "..")
-    _, err = executeCommand("mkdir", "-p", linkDir)
-    if err != nil {
-        panic(err)
-    }
+	linkDir := path.Join(linkPath, "..")
+	_, err = executeCommand("mkdir", "-p", linkDir)
+	if err != nil {
+		panic(err)
+	}
 
-    // Remove existing symlink
-    _, err = executeCommand("rm", "-f", linkPath)
-    if err != nil {
-        panic(err)
-    }
+	// Remove existing symlink
+	_, err = executeCommand("rm", "-f", linkPath)
+	if err != nil {
+		panic(err)
+	}
 
 	_, err = executeCommand("ln", "-s", currentDir, linkPath)
 	if err != nil {
@@ -210,9 +210,9 @@ func createWorkspaceSymlink(repositoryPath string) {
 // then workspace/ in the same directory is the workspace.
 // If we get to the root directory, return the env GOPATH.
 func getWorkspacePath() string {
-    if !*useDeliverWorkspace {
-        return strings.Split(os.Getenv("GOPATH"), ":")[0]
-    }
+	if !*useDeliverWorkspace {
+		return strings.Split(os.Getenv("GOPATH"), ":")[0]
+	}
 
 	dir, err := os.Getwd()
 	if err != nil {
@@ -224,16 +224,16 @@ func getWorkspacePath() string {
 		_, err := os.Stat(possibleManifest)
 		if err == nil {
 			// packages.json exists. Crete workspace
-            var workspaceRoot string
-            if len(*rootWorkspaceDir) == 0 {
-                workspaceRoot = os.Getenv("HOME")
-            } else {
-                workspaceRoot = *rootWorkspaceDir
-            }
+			var workspaceRoot string
+			if len(*rootWorkspaceDir) == 0 {
+				workspaceRoot = os.Getenv("HOME")
+			} else {
+				workspaceRoot = *rootWorkspaceDir
+			}
 			return path.Join(workspaceRoot, WORKSPACES_DIR, dir)
 		}
 
-        if os.IsNotExist(err) {
+		if os.IsNotExist(err) {
 			// packages.json does not exist.
 			if dir == "/" {
 				// If we're already at the root, return
@@ -343,12 +343,12 @@ func main() {
 		usage()
 	}
 
-    defer func() {
-        if r := recover(); r != nil {
-            fmt.Fprintf(os.Stderr, "%v\n", r)
-            os.Exit(1)
-        }
-    }()
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", r)
+			os.Exit(1)
+		}
+	}()
 
 	switch args[0] {
 	case "path":
