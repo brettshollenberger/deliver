@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strings"
 )
 
@@ -25,7 +26,7 @@ var useDeliverWorkspace *bool = flag.Bool("deliver_workspace", false, "If true, 
 
 type Manifest struct {
 	Repository string `json:",omitempty"`
-	Packages   map[string]Package
+	Packages   map[string]*Package
 }
 
 func (m *Manifest) writeToFile(fileName string) {
@@ -42,6 +43,7 @@ func (m *Manifest) hasRepository() bool {
 
 // Packages defined in the manifest
 type Package struct {
+    Name     string `json:"-"`
 	Source   string
 	Branch   string `json:",omitempty"`
 	Revision string
@@ -50,13 +52,27 @@ type Package struct {
 func (p *Package) getBranch() string {
 	if p.Branch == "" {
 		return "master"
-	} else {
-		return p.Branch
 	}
+	return p.Branch
+}
+
+func (p *Package) getRevision() string {
+	if !p.hasRevision() {
+		return "HEAD"
+	}
+	return p.Revision
+}
+
+func (p *Package) getRef() string {
+	return fmt.Sprintf("%s/%s", p.getBranch(), p.getRevision())
 }
 
 func (p *Package) hasRevision() bool {
 	return p.Revision != ""
+}
+
+func (p *Package) dump() {
+	fmt.Printf("%s %s/%s\n", p.Source, p.getBranch(), p.getRevision())
 }
 
 // Parses the manifest from into a Manifest struct.
@@ -70,6 +86,9 @@ func NewManifestFromFile(manifestFile string) (manifest *Manifest) {
 	err = json.Unmarshal(fileBytes, manifest)
 	if err != nil {
 		panic(err)
+	}
+	for packageName, packageInfo := range manifest.Packages {
+		packageInfo.Name = packageName
 	}
 	return
 }
@@ -123,6 +142,15 @@ func (g *GitRepository) fetch() {
 	runInDirectory(g.repoPath, func() (string, error) {
 		return executeCommand("git", "fetch")
 	})
+}
+
+func (this *GitRepository) update(packageInfo *Package) {
+	if packageInfo.hasRevision() {
+		this.checkoutRevision(packageInfo.Revision)
+	} else {
+		this.checkoutBranchTip(packageInfo.getBranch())
+		packageInfo.Revision = this.getCurrentRevision()
+	}
 }
 
 // Function signature used in runInDirectory().
@@ -253,14 +281,20 @@ func getWorkspacePath() string {
 // Gets or updates all packages specified in the given file.
 // Fetches packages recursively if one of the referenced packages
 // has a manifest.
-func downloadPackages(manifest *Manifest) {
-	packages := manifest.Packages
-	for packageName, packageInfo := range packages {
-		downloadPackage(packageName, &packageInfo)
-		// Package revision may have been changed.
-		packages[packageName] = packageInfo
-
+func downloadPackages(parent *Node, manifest *Manifest) {
+	for _, packageInfo := range manifest.Packages {
+		child := downloadPackage(packageInfo)
+		parent.addChild(child)
 	}
+}
+
+func GitRepositoryFromPackage(packageInfo *Package) *GitRepository {
+	packageDir := path.Join(getWorkspacePath(), "src", packageInfo.Name)
+	git := &GitRepository{
+		repoUrl:  packageInfo.Source,
+		repoPath: packageDir,
+	}
+	return git
 }
 
 // Installs the given package. If the package has a locked revision,
@@ -268,55 +302,50 @@ func downloadPackages(manifest *Manifest) {
 // by checking out the tip of the specified branch, and save the new revision to packageInfo.
 // If the package itself has dependencies specified in a lockfile, recursively download
 // them as well.
-func downloadPackage(packageName string, packageInfo *Package) {
-	packageDir := path.Join(getWorkspacePath(), "src", packageName)
-	fmt.Fprintf(os.Stdout, "downloading %s\n", packageName)
-	fmt.Fprintf(os.Stdout, "package dir %s\n", packageDir)
+func downloadPackage(packageInfo *Package) *Node {
+	git := GitRepositoryFromPackage(packageInfo)
 
-	git := GitRepository{
-		repoUrl:  packageInfo.Source,
-		repoPath: packageDir,
-	}
+	fmt.Fprintf(os.Stdout, "downloading %s -> %s\n", packageInfo.Name, git.repoPath)
 
 	// If package directory does not exist, create the directory.
-	if _, err := os.Stat(packageDir); os.IsNotExist(err) {
-		_, execErr := executeCommand("mkdir", "-p", packageDir)
+	if _, err := os.Stat(git.repoPath); os.IsNotExist(err) {
+		_, execErr := executeCommand("mkdir", "-p", git.repoPath)
 		if execErr != nil {
 			panic(execErr)
 		}
 	}
 
 	// Check if repository already exists in package directory.
-	gitInfoPath := path.Join(packageDir, ".git")
+	gitInfoPath := path.Join(git.repoPath, ".git")
 	if _, err := os.Stat(gitInfoPath); os.IsNotExist(err) {
 		// Git repo does not exist. Clone it.
-		git.clone(packageDir, packageInfo.getBranch())
+		git.clone(git.repoPath, packageInfo.getBranch())
 	} else {
 		// Git repo exists. Pull latest.
 		git.fetch()
 	}
+	git.update(packageInfo)
 
-	if packageInfo.hasRevision() {
-		git.checkoutRevision(packageInfo.Revision)
-	} else {
-		git.checkoutBranchTip(packageInfo.getBranch())
-		packageInfo.Revision = git.getCurrentRevision()
-	}
+	node := NewNode(packageInfo)
 
-	// Check if package has its own dependencies. If so, download them as well.
-	packageManifestFile := path.Join(packageDir, LOCK_FILE)
+	// Check if package has its own dependencies.
+	packageManifestFile := path.Join(git.repoPath, LOCK_FILE)
 	_, err := os.Stat(packageManifestFile)
-	switch {
-	case err == nil:
-		// No error means lock file exists.
-		fmt.Fprintf(os.Stdout, "getting dependencies of %s...\n", packageName)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			panic(err)
+		}
+	} else if err == nil {
+		// No error from stat() means the .lock file exists.
 		packageManifest := NewManifestFromFile(packageManifestFile)
-		downloadPackages(packageManifest)
-		fmt.Fprintf(os.Stdout, "done with dependencies of %s\n", packageName)
 
-	case !os.IsNotExist(err):
-		panic(err)
+		// Download dependencies in the manifest.
+		fmt.Fprintf(os.Stdout, "getting dependencies of %s...\n", packageInfo.Name)
+		downloadPackages(node, packageManifest)
+		fmt.Fprintf(os.Stdout, "done with dependencies of %s\n", packageInfo.Name)
 	}
+
+	return node
 }
 
 func usage() {
@@ -350,10 +379,15 @@ func main() {
 		}
 	}()
 
+	workspacePath := getWorkspacePath()
+	currentPath, _ := filepath.Abs(".")
+	packagePath := strings.TrimPrefix(currentPath, filepath.Join(workspacePath, "src"))
+
+	root := NewNode(&Package{Source: packagePath})
+
 	switch args[0] {
 	case "path":
 		// Return the deliver gopath.
-		workspacePath := getWorkspacePath()
 		fmt.Fprintf(os.Stdout, "%s", workspacePath)
 		os.Exit(0)
 
@@ -366,9 +400,9 @@ func main() {
 			if !ok {
 				panic(errors.New(fmt.Sprintf("Package %s not found in %s", packageName, LOCK_FILE)))
 			}
-			downloadPackage(packageName, &packageInfo)
+			root = downloadPackage(packageInfo)
 		} else {
-			downloadPackages(lockManifest)
+			downloadPackages(root, lockManifest)
 			if lockManifest.hasRepository() {
 				createWorkspaceSymlink(lockManifest.Repository)
 			}
@@ -383,14 +417,15 @@ func main() {
 			if !ok {
 				panic(errors.New(fmt.Sprintf("Package not found: %s", packageName)))
 			}
-			downloadPackage(packageName, &packageInfo)
+			downloadPackage(packageInfo)
+
 			// Replace a single package in the lockfile.
 			// This will create a new lockfile if one doesn't exist.
 			lockManifest := NewManifestFromFile(LOCK_FILE)
 			lockManifest.Packages[packageName] = packageInfo
 			lockManifest.writeToFile(LOCK_FILE)
 		} else {
-			downloadPackages(manifest)
+			downloadPackages(root, manifest)
 			if manifest.hasRepository() {
 				createWorkspaceSymlink(manifest.Repository)
 			}
@@ -398,5 +433,17 @@ func main() {
 			// This will create a new lockfile if one doesn't exist.
 			manifest.writeToFile(LOCK_FILE)
 		}
+	}
+
+	// Back up, and re-checkout all conflicted repos with the resolved versions.
+	resolved := ResolveConflicts(root)
+
+	if len(resolved) > 0 {
+		for _, packageInfo := range resolved {
+			fmt.Fprintf(os.Stdout, "resolving %s to %s\n", packageInfo.Name, packageInfo.getRef())
+			git := GitRepositoryFromPackage(packageInfo)
+			git.update(packageInfo)
+		}
+		fmt.Fprintf(os.Stdout, "Version conflicts were detected. If the build fails, you may want to see if that's a problem.\n")
 	}
 }
