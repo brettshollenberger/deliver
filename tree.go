@@ -9,15 +9,8 @@ type Node struct {
 }
 
 func NewNode(packageInfo *Package) *Node {
-	// deliver passes in a pointer to a local variable, so we copy it in case it
-	// mutates.
-	var copied *Package
-	if packageInfo != nil {
-		copied = &Package{}
-		*copied = *packageInfo
-	}
 	return &Node{
-		packageInfo: copied,
+		packageInfo: packageInfo,
 	}
 }
 
