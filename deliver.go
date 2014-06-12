@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strings"
 )
 
@@ -176,6 +177,18 @@ func executeCommand(args ...string) (out string, err error) {
 	return string(outBytes), err
 }
 
+func pathCompare(a string, b string) bool {
+	realA, err := filepath.EvalSymlinks(a)
+	if err != nil {
+		panic(err)
+	}
+	realB, err := filepath.EvalSymlinks(b)
+	if err != nil {
+		panic(err)
+	}
+	return realA == realB
+}
+
 func createWorkspaceSymlink(repositoryPath string) {
 	currentDir, err := os.Getwd()
 	if err != nil {
@@ -183,7 +196,7 @@ func createWorkspaceSymlink(repositoryPath string) {
 	}
 	linkPath := path.Join(getWorkspacePath(), "src", repositoryPath)
 
-	if linkPath == currentDir {
+	if pathCompare(linkPath, currentDir) {
 		fmt.Fprintln(os.Stdout, "skipping symlink...")
 		return
 	}
