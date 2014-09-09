@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -34,7 +35,11 @@ func (m *Manifest) writeToFile(fileName string) {
 	if err != nil {
 		panic(err)
 	}
-	ioutil.WriteFile(fileName, data, 0644)
+	var buf bytes.Buffer
+	if err := json.Indent(&buf, data, "", "\t"); err != nil {
+		panic(err)
+	}
+	ioutil.WriteFile(fileName, buf.Bytes(), 0644)
 }
 
 func (m *Manifest) hasRepository() bool {
